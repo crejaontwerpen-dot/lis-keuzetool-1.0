@@ -29,11 +29,25 @@ export async function POST(req) {
       );
     }
 
-    const to = process.env.LIS_ADVICE_TO || "rob@creja.nl";
+    // Haal de ontvangers uit de env, met fallback naar één adres
+    const rawTo = process.env.LIS_ADVICE_TO || "rob@creja.nl";
+
+    // Ondersteunt nu één of meerdere adressen, komma-gescheiden
+    const to = rawTo
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (to.length === 0) {
+      return Response.json(
+        { ok: false, error: "No valid LIS_ADVICE_TO recipients" },
+        { status: 500 }
+      );
+    }
 
     await transporter().sendMail({
-      from: process.env.MAIL_FROM,
-      to,
+      from: process.env.MAIL_FROM || "noreply@example.com",
+      to, // array of adressen
       subject: `Nieuw LiS-advies – ${name || "Onbekende bezoeker"}`,
       html: adviceHtml,
       text: advicePlain || "",
