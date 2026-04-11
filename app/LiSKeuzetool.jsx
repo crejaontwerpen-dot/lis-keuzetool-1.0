@@ -165,6 +165,7 @@ export default function LiSKeuzetool() {
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [background, setBackground] = useState("");
   const [role, setRole] = useState("");
   const [interests, setInterests] = useState([]);
@@ -191,6 +192,7 @@ export default function LiSKeuzetool() {
         const saved = JSON.parse(raw);
         if (saved.name) setName(saved.name);
         if (saved.email) setEmail(saved.email);
+        if (saved.phone) setPhone(saved.phone);
         if (saved.background) setBackground(saved.background);
         if (saved.role) setRole(saved.role);
         if (Array.isArray(saved.interests)) setInterests(saved.interests);
@@ -206,6 +208,7 @@ export default function LiSKeuzetool() {
       if (data) {
         setName(data.name || "");
         setEmail(data.email || "");
+        setPhone(data.phone || "");
         setBackground(data.background || "");
         setRole(data.role || "");
         if (Array.isArray(data.interests)) setInterests(data.interests);
@@ -228,10 +231,10 @@ export default function LiSKeuzetool() {
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ name, email, background, role, interests })
+        JSON.stringify({ name, email, phone, background, role, interests })
       );
     } catch {}
-  }, [name, email, background, role, interests]);
+  }, [name, email, phone, background, role, interests]);
 
   useEffect(() => {
     if (!isComposing) return;
@@ -267,8 +270,8 @@ export default function LiSKeuzetool() {
   );
 
   const canGoStep1 = useMemo(
-    () => name.trim() && /.+@.+\..+/.test(email),
-    [name, email]
+    () => name.trim() && /.+@.+\..+/.test(email) && phone.trim(),
+    [name, email, phone]
   );
 
   const canGoStep2 = useMemo(
@@ -305,7 +308,10 @@ export default function LiSKeuzetool() {
     const yes = formatBulleted(handledModulesYes.map((m) => stripParens(m.label)));
     const no = formatBulleted(handledModulesNo.map((m) => stripParens(m.label)));
 
-    return `Persoonlijk Advies\n\n1. Persoonlijke gegevens\n• Naam: ${name}\n• Datum advies: ${today}\n${
+    return `Persoonlijk Advies\n\n1. Persoonlijke gegevens\n• Naam: ${name}\n${
+      email.trim() ? `• E-mailadres: ${email.trim()}\n` : ""
+    }${phone.trim() ? `• Telefoonnummer: ${phone.trim()}\n` : ""
+    }• Datum advies: ${today}\n${
       background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""
     }• Wat is je huidige functie: ${role}\n\n2. Overzicht carrière kansen\n• Ik beheers:\n  - ${
       yes || "(geen ingevulde JA-antwoorden)"
@@ -318,6 +324,7 @@ export default function LiSKeuzetool() {
     return {
       name,
       email,
+      phone,
       background: background.trim() || null,
       role,
       interests,
@@ -390,6 +397,20 @@ export default function LiSKeuzetool() {
         <h2 style="margin:0 0 12px 0; font-size:20px;">Persoonlijk Advies</h2>
         <h3 style="margin:16px 0 8px 0; font-size:16px;">1. Persoonlijke gegevens</h3>
         <p style="margin:4px 0;">Naam: <strong>${clean(name)}</strong></p>
+        ${
+          email.trim()
+            ? `<p style="margin:4px 0;">E-mailadres: <strong>${clean(
+                email
+              )}</strong></p>`
+            : ""
+        }
+        ${
+          phone.trim()
+            ? `<p style="margin:4px 0;">Telefoonnummer: <strong>${clean(
+                phone
+              )}</strong></p>`
+            : ""
+        }
         <p style="margin:4px 0;">Datum advies: <strong>${clean(today)}</strong></p>
         ${
           background.trim()
@@ -535,6 +556,19 @@ export default function LiSKeuzetool() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="naam@voorbeeld.nl"
+                  className="mt-1 border rounded-lg p-2"
+                  required
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-black">
+                  Telefoonnummer <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Bijv. 06 12345678"
                   className="mt-1 border rounded-lg p-2"
                   required
                 />
@@ -778,6 +812,10 @@ export default function LiSKeuzetool() {
                 <div>
                   <dt className="text-sm text-gray-600">Datum advies</dt>
                   <dd className="font-medium text-black">{today}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-gray-600">Telefoonnummer</dt>
+                  <dd className="font-medium text-black">{phone}</dd>
                 </div>
                 {background.trim() && (
                   <div className="md:col-span-2">
