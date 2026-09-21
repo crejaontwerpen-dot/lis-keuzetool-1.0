@@ -3,11 +3,26 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 const TRACKS = {
-  A: { label: "NPI Engineer" },
-  B: { label: "Product Engineer" },
-  C: { label: "CNC Operator" },
-  D: { label: "Assembly Technician" },
-  E: { label: "Certified Quality Engineer" },
+  A: {
+    label: "NPI Engineer",
+    filterSlug: "npi-engineer",
+  },
+  B: {
+    label: "Product Engineer",
+    filterSlug: "product-engineer",
+  },
+  C: {
+    label: "CNC Operator",
+    filterSlug: "cnc-operator",
+  },
+  D: {
+    label: "Assembly Technician",
+    filterSlug: "assembly-technician",
+  },
+  E: {
+    label: "Certified Quality Engineer",
+    filterSlug: "quality-engineer",
+  },
 };
 
 // Keys voor localStorage
@@ -19,9 +34,9 @@ function slugifyModuleLabel(label) {
   return (label || "")
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // verwijder accenten
-    .replace(/[^a-z0-9]+/g, "-") // vervang alles dat geen letter/cijfer is
-    .replace(/^-+|-+$/g, ""); // trim streepjes
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 const ALL_MODULES = [
@@ -104,7 +119,7 @@ const ALL_MODULES = [
     desc: "Beheers kwaliteit en veiligheid: leer ISO 9001 en CE-markering toepassen in de praktijk.",
   },
 
-  // Nieuwe modules Assembly Technician
+  // Assembly Technician
   {
     key: "cleanWorking",
     label: "Schoon werken",
@@ -124,7 +139,7 @@ const ALL_MODULES = [
     desc: "Werk gecontroleerd en zorgvuldig: leer de procedures en werkwijzen voor veilig en schoon werken in een cleanroomomgeving.",
   },
 
-  // Nieuwe modules Certified Quality Engineer
+  // Certified Quality Engineer
   {
     key: "measurementTools",
     label: "Meetmiddelen",
@@ -139,6 +154,7 @@ const ALL_MODULES = [
   },
 ];
 
+// Speciale LiS-pagina voor de keuzetool
 const LIS_BASE =
   "https://www.lis.nl/lis-voor-werkenden-maatwerkprogramma-s-hightechsector/programma-aanbod/";
 
@@ -147,13 +163,17 @@ const LIS_PERSONAL_BASE = LIS_BASE + "persoonlijk-advies-def/";
 function makeLisFilterUrl(interests, noModules) {
   const picked = Array.isArray(interests) ? interests : [];
 
+  // Gebruik de expliciete filter-slug van ieder beroepsprofiel
   const programmeSlugs = picked
     .map((code) => TRACKS[code])
     .filter(Boolean)
-    .map((t) => slugifyModuleLabel(t.label));
+    .map((track) => track.filterSlug);
 
-  const moduleSlugs = (noModules || []).map((m) =>
-    slugifyModuleLabel(typeof m === "string" ? m : m.label)
+  // Modules worden opgebouwd vanuit hun officiële LiS-naam
+  const moduleSlugs = (noModules || []).map((module) =>
+    slugifyModuleLabel(
+      typeof module === "string" ? module : module.label
+    )
   );
 
   if (programmeSlugs.length === 0 && moduleSlugs.length === 0) {
@@ -252,9 +272,9 @@ export default function LiSKeuzetool() {
         if (Array.isArray(data.modules)) {
           const map = {};
 
-          data.modules.forEach((m) => {
-            if (m && m.key) {
-              map[m.key] = m.answer;
+          data.modules.forEach((module) => {
+            if (module && module.key) {
+              map[module.key] = module.answer;
             }
           });
 
@@ -309,19 +329,21 @@ export default function LiSKeuzetool() {
   const filteredModules = useMemo(() => {
     const picked = Array.isArray(interests) ? interests : [];
 
-    if (picked.length === 0) return [];
+    if (picked.length === 0) {
+      return [];
+    }
 
     return ALL_MODULES.filter(
-      (m) =>
-        Array.isArray(m.tracks) &&
-        m.tracks.some((t) => picked.includes(t))
+      (module) =>
+        Array.isArray(module.tracks) &&
+        module.tracks.some((track) => picked.includes(track))
     );
   }, [interests]);
 
   const handledModulesYes = useMemo(
     () =>
       filteredModules.filter(
-        (m) => competences[m.key] === true
+        (module) => competences[module.key] === true
       ),
     [filteredModules, competences]
   );
@@ -329,7 +351,7 @@ export default function LiSKeuzetool() {
   const handledModulesNo = useMemo(
     () =>
       filteredModules.filter(
-        (m) => competences[m.key] === false
+        (module) => competences[module.key] === false
       ),
     [filteredModules, competences]
   );
@@ -354,7 +376,7 @@ export default function LiSKeuzetool() {
       const list = Array.isArray(prev) ? prev : [];
 
       if (list.includes(code)) {
-        return list.filter((c) => c !== code);
+        return list.filter((item) => item !== code);
       }
 
       if (list.length >= 2) {
@@ -366,14 +388,14 @@ export default function LiSKeuzetool() {
   }
 
   function setCompetenceFor(moduleKey, value) {
-    setCompetences((p) => ({
-      ...p,
+    setCompetences((prev) => ({
+      ...prev,
       [moduleKey]: value,
     }));
   }
 
-  function toStep(n) {
-    setStep(n);
+  function toStep(number) {
+    setStep(number);
 
     window.scrollTo({
       top: 0,
@@ -388,11 +410,11 @@ export default function LiSKeuzetool() {
 
   function buildAdviceText() {
     const yes = formatBulleted(
-      handledModulesYes.map((m) => m.label)
+      handledModulesYes.map((module) => module.label)
     );
 
     const no = formatBulleted(
-      handledModulesNo.map((m) => m.label)
+      handledModulesNo.map((module) => module.label)
     );
 
     return `Persoonlijk Advies
@@ -420,10 +442,10 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
       role,
       interests,
 
-      modules: filteredModules.map((m) => ({
-        key: m.key,
-        label: m.label,
-        answer: competences[m.key],
+      modules: filteredModules.map((module) => ({
+        key: module.key,
+        label: module.label,
+        answer: competences[module.key],
       })),
 
       wantsContact,
@@ -433,8 +455,8 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
   }
 
   function buildAdviceHtml() {
-    const clean = (s) =>
-      (s || "").replace(/</g, "&lt;");
+    const clean = (value) =>
+      (value || "").replace(/</g, "&lt;");
 
     const url = makeLisFilterUrl(
       interests,
@@ -449,26 +471,24 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
 
               if (!track) return "";
 
-              const yesForTrack =
-                handledModulesYes.filter(
-                  (m) =>
-                    Array.isArray(m.tracks) &&
-                    m.tracks.includes(code)
-                );
+              const yesForTrack = handledModulesYes.filter(
+                (module) =>
+                  Array.isArray(module.tracks) &&
+                  module.tracks.includes(code)
+              );
 
-              const noForTrack =
-                handledModulesNo.filter(
-                  (m) =>
-                    Array.isArray(m.tracks) &&
-                    m.tracks.includes(code)
-                );
+              const noForTrack = handledModulesNo.filter(
+                (module) =>
+                  Array.isArray(module.tracks) &&
+                  module.tracks.includes(code)
+              );
 
               const yesHtml =
                 yesForTrack.length > 0
                   ? yesForTrack
                       .map(
-                        (m) =>
-                          `<li>${clean(m.label)}</li>`
+                        (module) =>
+                          `<li>${clean(module.label)}</li>`
                       )
                       .join("")
                   : '<li style="color:#666">(geen ingevulde JA-antwoorden binnen deze functie)</li>';
@@ -477,41 +497,26 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
                 noForTrack.length > 0
                   ? noForTrack
                       .map(
-                        (m) =>
-                          `<li>${clean(m.label)}</li>`
+                        (module) =>
+                          `<li>${clean(module.label)}</li>`
                       )
                       .join("")
                   : '<li style="color:#666">(geen ingevulde NEE-antwoorden binnen deze functie)</li>';
 
               return `
         <div style="margin-top:16px; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#ffffff;">
-          <p style="margin:0 0 4px 0; font-size:13px; color:#4b5563;">
-            Binnen de functie:
-          </p>
-
-          <p style="margin:0 0 8px 0; font-weight:600; color:#111827;">
-            ${clean(track.label)}
-          </p>
-
+          <p style="margin:0 0 4px 0; font-size:13px; color:#4b5563;">Binnen de functie:</p>
+          <p style="margin:0 0 8px 0; font-weight:600; color:#111827;">${clean(
+            track.label
+          )}</p>
           <div style="display:flex; gap:24px; flex-wrap:wrap;">
             <div style="min-width:180px;">
-              <p style="margin:0 0 4px 0; font-weight:500;">
-                Ik beheers
-              </p>
-
-              <ul style="margin:0 0 8px 20px; padding:0;">
-                ${yesHtml}
-              </ul>
+              <p style="margin:0 0 4px 0; font-weight:500;">Ik beheers</p>
+              <ul style="margin:0 0 8px 20px; padding:0;">${yesHtml}</ul>
             </div>
-
             <div style="min-width:180px;">
-              <p style="margin:0 0 4px 0; font-weight:500;">
-                Ik wil leren
-              </p>
-
-              <ul style="margin:0 0 8px 20px; padding:0;">
-                ${noHtml}
-              </ul>
+              <p style="margin:0 0 4px 0; font-weight:500;">Ik wil leren</p>
+              <ul style="margin:0 0 8px 20px; padding:0;">${noHtml}</ul>
             </div>
           </div>
         </div>`;
@@ -521,7 +526,6 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
 
     return `
       <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color:#111;">
-
         <h2 style="margin:0 0 12px 0; font-size:20px;">
           Persoonlijk Advies
         </h2>
@@ -591,7 +595,6 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
             www.lis.nl
           </a>
         </p>
-
       </div>`;
   }
 
@@ -621,25 +624,18 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
     const adviceObj = buildAdviceObject();
 
     try {
-      const res = await fetch(
-        "/api/send-lis-advice",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+      const res = await fetch("/api/send-lis-advice", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...adviceObj,
+          adviceHtml: buildAdviceHtmlForRob(),
+        }),
+      });
 
-          body: JSON.stringify({
-            ...adviceObj,
-            adviceHtml:
-              buildAdviceHtmlForRob(),
-          }),
-        }
-      );
-
-      const data = await res
-        .json()
-        .catch(() => ({}));
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         setStatusMsg(
@@ -651,9 +647,7 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
         return true;
       }
 
-      setStatusMsg(
-        "Uw advies is opgeslagen"
-      );
+      setStatusMsg("Uw advies is opgeslagen");
 
       return true;
     } catch (e) {
@@ -672,9 +666,7 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
     const adviceObj = buildAdviceObject();
     const html = buildAdviceHtml();
 
-    setStatusMsg(
-      "Advies mailen naar bezoeker…"
-    );
+    setStatusMsg("Advies mailen naar bezoeker…");
 
     try {
       const res = await fetch(
@@ -684,7 +676,6 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
           headers: {
             "Content-Type": "application/json",
           },
-
           body: JSON.stringify({
             to: email,
             subject: `Uw persoonlijk LiS-advies – ${
@@ -696,9 +687,7 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
         }
       );
 
-      const data = await res
-        .json()
-        .catch(() => ({}));
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         setStatusMsg(
@@ -726,7 +715,6 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
       style={{ backgroundColor: "#3489c2" }}
     >
       <header className="mx-auto max-w-4xl px-4 py-8">
-
         <h1 className="text-3xl font-bold text-black">
           Keuzetool LiS voor Werkenden
         </h1>
@@ -760,25 +748,20 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
             {composingText}
           </p>
         )}
-
       </header>
 
       <main className="mx-auto max-w-4xl bg-white rounded-2xl shadow-lg p-8">
-
-        {/* STAP 1 */}
-
+        {/* Stap 1 */}
         {step === 1 && (
           <section>
-
             <h2 className="text-xl font-semibold text-black mb-2">
               1. Persoonlijke gegevens
             </h2>
 
             <div className="grid md:grid-cols-2 gap-4">
-
               <div className="flex flex-col">
                 <label className="text-sm font-medium text-black">
-                  Naam
+                  Naam{" "}
                   <span className="text-red-500">
                     *
                   </span>
@@ -798,7 +781,7 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
 
               <div className="flex flex-col">
                 <label className="text-sm font-medium text-black">
-                  Email
+                  Email{" "}
                   <span className="text-red-500">
                     *
                   </span>
@@ -848,7 +831,6 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
               <div className="md:col-span-2 flex flex-col">
                 <label className="text-sm font-medium text-black">
                   Achtergrond
-
                   <span className="text-gray-500 font-normal">
                     {" "}
                     (optioneel, max. 250 woorden)
@@ -865,17 +847,14 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
                   maxLength={2000}
                 />
               </div>
-
             </div>
 
             <div className="mt-6">
-
               <p className="text-sm font-medium text-black mb-2">
                 Geïnteresseerd in (kies maximaal 2):
               </p>
 
               <div className="flex flex-wrap gap-2">
-
                 {Object.entries(TRACKS).map(
                   ([code, { label }]) => (
                     <button
@@ -893,9 +872,7 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
                       disabled={
                         !Array.isArray(interests)
                           ? false
-                          : !interests.includes(
-                              code
-                            ) &&
+                          : !interests.includes(code) &&
                             interests.length >= 2
                       }
                     >
@@ -903,12 +880,10 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
                     </button>
                   )
                 )}
-
               </div>
             </div>
 
             <div className="mt-8 flex items-center gap-3">
-
               <button
                 className={`px-5 py-2 rounded-xl text-white shadow transition-colors duration-300 ${
                   canGoStep1
@@ -920,17 +895,13 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
               >
                 Start keuzetool
               </button>
-
             </div>
-
           </section>
         )}
 
-        {/* STAP 2 */}
-
+        {/* Stap 2 */}
         {step === 2 && (
           <section>
-
             <h2 className="text-xl font-semibold text-black mb-2">
               2. Startpunt keuzetool
             </h2>
@@ -948,42 +919,37 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
             )}
 
             <ul className="space-y-3">
-
-              {filteredModules.map((m) => (
+              {filteredModules.map((module) => (
                 <li
-                  key={m.key}
+                  key={module.key}
                   className="flex items-center justify-between gap-4 border rounded-xl p-3"
                 >
-
                   <div>
                     <p className="font-medium text-black">
-                      {m.label}
+                      {module.label}
                     </p>
 
                     <p className="text-xs text-gray-500">
-                      {m.desc}
+                      {module.desc}
                     </p>
                   </div>
 
                   <div className="flex gap-2">
-
                     <button
                       type="button"
                       onClick={() =>
                         setCompetenceFor(
-                          m.key,
+                          module.key,
                           true
                         )
                       }
                       className={`px-3 py-2 rounded-lg border transition-colors duration-300 ${
-                        competences[m.key] ===
-                        true
+                        competences[module.key] === true
                           ? "bg-[#3489c2] border-[#3489c2] text-white hover:bg-black"
                           : "bg-white border-gray-300 hover:bg-black hover:text-white"
                       }`}
                       aria-pressed={
-                        competences[m.key] ===
-                        true
+                        competences[module.key] === true
                       }
                     >
                       Ja
@@ -993,32 +959,27 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
                       type="button"
                       onClick={() =>
                         setCompetenceFor(
-                          m.key,
+                          module.key,
                           false
                         )
                       }
                       className={`px-3 py-2 rounded-lg border transition-colors duration-300 ${
-                        competences[m.key] ===
-                        false
+                        competences[module.key] === false
                           ? "bg-[#3489c2] border-[#3489c2] text-white hover:bg-black"
                           : "bg-white border-gray-300 hover:bg-black hover:text-white"
                       }`}
                       aria-pressed={
-                        competences[m.key] ===
-                        false
+                        competences[module.key] === false
                       }
                     >
                       Nee
                     </button>
-
                   </div>
                 </li>
               ))}
-
             </ul>
 
             <div className="mt-8 flex items-center gap-3">
-
               <button
                 className="px-4 py-2 rounded-xl border transition-colors duration-300 hover:bg-black hover:text-white"
                 onClick={() => toStep(1)}
@@ -1037,17 +998,13 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
               >
                 Verder
               </button>
-
             </div>
-
           </section>
         )}
 
-        {/* STAP 3 */}
-
+        {/* Stap 3 */}
         {step === 3 && (
           <section>
-
             <h2 className="text-xl font-semibold text-black mb-2">
               3. Aanvullende vragen
             </h2>
@@ -1058,7 +1015,6 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
             </p>
 
             <div className="flex gap-2">
-
               <button
                 type="button"
                 className={`px-3 py-2 rounded-xl border transition-colors duration-300 ${
@@ -1086,11 +1042,9 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
               >
                 Nee, niet nodig
               </button>
-
             </div>
 
             <div className="mt-8 flex items-center gap-3">
-
               <button
                 className="px-4 py-2 rounded-xl border transition-colors duration-300 hover:bg-black hover:text-white"
                 onClick={() => toStep(2)}
@@ -1106,8 +1060,7 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
                 }`}
                 disabled={!canShowAdvice}
                 onClick={async () => {
-                  const ok =
-                    await sendToRob();
+                  const ok = await sendToRob();
 
                   if (ok) {
                     toStep(4);
@@ -1116,29 +1069,23 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
               >
                 Toon mij advies
               </button>
-
             </div>
-
           </section>
         )}
 
-        {/* STAP 4 */}
-
+        {/* Stap 4 */}
         {step === 4 && (
           <section>
-
             <h2 className="text-xl font-semibold text-black mb-2">
               4. Persoonlijk Advies
             </h2>
 
             <div className="border rounded-2xl p-5 bg-gray-50">
-
               <h3 className="text-lg font-semibold text-black mb-3">
                 1. Persoonlijke gegevens
               </h3>
 
               <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
                 <div>
                   <dt className="text-sm text-gray-600">
                     Naam
@@ -1161,7 +1108,6 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
 
                 {background.trim() && (
                   <div className="md:col-span-2">
-
                     <dt className="text-sm text-gray-600">
                       Achtergrond
                     </dt>
@@ -1169,12 +1115,10 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
                     <dd className="font-medium whitespace-pre-wrap text-black">
                       {background}
                     </dd>
-
                   </div>
                 )}
 
                 <div className="md:col-span-2">
-
                   <dt className="text-sm text-gray-600">
                     Wat is je huidige functie
                   </dt>
@@ -1182,47 +1126,34 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
                   <dd className="font-medium text-black">
                     {role}
                   </dd>
-
                 </div>
-
               </dl>
             </div>
 
             <div className="border rounded-2xl p-5 bg-gray-50 mt-6">
-
               <h3 className="text-lg font-semibold text-black mb-3">
                 2. Overzicht carrière kansen
               </h3>
 
               {Array.isArray(interests) &&
               interests.length > 0 ? (
-
                 interests.map((code) => {
-                  const track =
-                    TRACKS[code];
+                  const track = TRACKS[code];
 
                   if (!track) return null;
 
                   const yesForTrack =
                     handledModulesYes.filter(
-                      (m) =>
-                        Array.isArray(
-                          m.tracks
-                        ) &&
-                        m.tracks.includes(
-                          code
-                        )
+                      (module) =>
+                        Array.isArray(module.tracks) &&
+                        module.tracks.includes(code)
                     );
 
                   const noForTrack =
                     handledModulesNo.filter(
-                      (m) =>
-                        Array.isArray(
-                          m.tracks
-                        ) &&
-                        m.tracks.includes(
-                          code
-                        )
+                      (module) =>
+                        Array.isArray(module.tracks) &&
+                        module.tracks.includes(code)
                     );
 
                   return (
@@ -1230,7 +1161,6 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
                       key={code}
                       className="mt-4 border rounded-xl bg-white p-4 last:mb-0"
                     >
-
                       <p className="text-sm text-gray-600">
                         Binnen de functie:
                       </p>
@@ -1240,95 +1170,72 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
                       </p>
 
                       <div className="grid md:grid-cols-2 gap-6">
-
                         <div>
-
                           <p className="font-medium text-black mb-2">
                             Ik beheers
                           </p>
 
                           <ul className="list-disc pl-5 space-y-1">
-
-                            {yesForTrack.length >
-                            0 ? (
+                            {yesForTrack.length > 0 ? (
                               yesForTrack.map(
-                                (m) => (
+                                (module) => (
                                   <li
-                                    key={
-                                      m.key
-                                    }
+                                    key={module.key}
                                     className="text-black"
                                   >
-                                    {
-                                      m.label
-                                    }
+                                    {module.label}
                                   </li>
                                 )
                               )
                             ) : (
                               <li className="text-gray-500">
                                 (geen ingevulde
-                                JA-antwoorden
-                                binnen deze
+                                JA-antwoorden binnen deze
                                 functie)
                               </li>
                             )}
-
                           </ul>
                         </div>
 
                         <div>
-
                           <p className="font-medium text-black mb-2">
                             Ik wil leren
                           </p>
 
                           <ul className="list-disc pl-5 space-y-1">
-
-                            {noForTrack.length >
-                            0 ? (
+                            {noForTrack.length > 0 ? (
                               noForTrack.map(
-                                (m) => (
+                                (module) => (
                                   <li
-                                    key={
-                                      m.key
-                                    }
+                                    key={module.key}
                                     className="text-black"
                                   >
-                                    {
-                                      m.label
-                                    }
+                                    {module.label}
                                   </li>
                                 )
                               )
                             ) : (
                               <li className="text-gray-500">
                                 (geen ingevulde
-                                NEE-antwoorden
-                                binnen deze
+                                NEE-antwoorden binnen deze
                                 functie)
                               </li>
                             )}
-
                           </ul>
                         </div>
-
                       </div>
                     </div>
                   );
                 })
-
               ) : (
                 <p className="text-gray-600">
                   Er zijn geen functies geselecteerd
                   in stap 1.
                 </p>
               )}
-
             </div>
 
             <div className="mt-8 flex flex-wrap gap-3">
-
               <a
                 href={dynamicLisUrl}
                 target="_blank"
@@ -1368,12 +1275,9 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
               >
                 Mail mijn persoonlijk advies
               </button>
-
             </div>
-
           </section>
         )}
-
       </main>
     </div>
   );
