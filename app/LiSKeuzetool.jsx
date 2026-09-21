@@ -163,13 +163,11 @@ const LIS_PERSONAL_BASE = LIS_BASE + "persoonlijk-advies-def/";
 function makeLisFilterUrl(interests, noModules) {
   const picked = Array.isArray(interests) ? interests : [];
 
-  // Gebruik de expliciete filter-slug van ieder beroepsprofiel
   const programmeSlugs = picked
     .map((code) => TRACKS[code])
     .filter(Boolean)
     .map((track) => track.filterSlug);
 
-  // Modules worden opgebouwd vanuit hun officiële LiS-naam
   const moduleSlugs = (noModules || []).map((module) =>
     slugifyModuleLabel(
       typeof module === "string" ? module : module.label
