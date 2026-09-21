@@ -163,11 +163,13 @@ const LIS_PERSONAL_BASE = LIS_BASE + "persoonlijk-advies-def/";
 function makeLisFilterUrl(interests, noModules) {
   const picked = Array.isArray(interests) ? interests : [];
 
+  // Beroepsprofielen gebruiken expliciete LiS-filter-slugs
   const programmeSlugs = picked
     .map((code) => TRACKS[code])
     .filter(Boolean)
     .map((track) => track.filterSlug);
 
+  // De officiële modulenamen leveren de juiste LiS-slugs op
   const moduleSlugs = (noModules || []).map((module) =>
     slugifyModuleLabel(
       typeof module === "string" ? module : module.label
@@ -203,6 +205,15 @@ function decodeAdviceFromUrl(str) {
   }
 }
 
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 export default function LiSKeuzetool() {
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
@@ -212,6 +223,7 @@ export default function LiSKeuzetool() {
   const [interests, setInterests] = useState([]);
   const [competences, setCompetences] = useState({});
   const [wantsContact, setWantsContact] = useState(null);
+  const [phone, setPhone] = useState("");
   const [statusMsg, setStatusMsg] = useState("");
   const [adviceHistory, setAdviceHistory] = useState([]);
   const [isComposing, setIsComposing] = useState(false);
@@ -260,6 +272,7 @@ export default function LiSKeuzetool() {
       if (data) {
         setName(data.name || "");
         setEmail(data.email || "");
+        setPhone(data.phone || "");
         setBackground(data.background || "");
         setRole(data.role || "");
 
@@ -364,10 +377,17 @@ export default function LiSKeuzetool() {
     [filteredModules]
   );
 
-  const canShowAdvice = useMemo(
-    () => wantsContact !== null,
-    [wantsContact]
-  );
+  const canShowAdvice = useMemo(() => {
+    if (wantsContact === false) {
+      return true;
+    }
+
+    if (wantsContact === true) {
+      return phone.trim().length > 0;
+    }
+
+    return false;
+  }, [wantsContact, phone]);
 
   function toggleInterest(code) {
     setInterests((prev) => {
@@ -419,8 +439,17 @@ export default function LiSKeuzetool() {
 
 1. Persoonlijke gegevens
 • Naam: ${name}
-• Datum advies: ${today}
-${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is je huidige functie: ${role}
+• E-mail: ${email}
+${
+  wantsContact === true && phone.trim()
+    ? `• Telefoonnummer: ${phone.trim()}\n`
+    : ""
+}• Datum advies: ${today}
+${
+  background.trim()
+    ? `• Achtergrond: ${background.trim()}\n`
+    : ""
+}• Wat is je huidige functie: ${role}
 
 2. Overzicht carrière kansen
 • Ik beheers:
@@ -428,7 +457,12 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
 • Ik wil leren:
   - ${no || "(geen ingevulde NEE-antwoorden)"}
 
-3. Link
+3. Persoonlijk contact
+• Persoonlijk contact gewenst: ${
+      wantsContact === true ? "Ja, graag" : "Nee, niet nodig"
+    }
+
+4. Link
 • ${dynamicLisUrl}`;
   }
 
@@ -436,6 +470,10 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
     return {
       name,
       email,
+      phone:
+        wantsContact === true && phone.trim()
+          ? phone.trim()
+          : null,
       background: background.trim() || null,
       role,
       interests,
@@ -453,8 +491,7 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
   }
 
   function buildAdviceHtml() {
-    const clean = (value) =>
-      (value || "").replace(/</g, "&lt;");
+    const clean = escapeHtml;
 
     const url = makeLisFilterUrl(
       interests,
@@ -503,18 +540,33 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
 
               return `
         <div style="margin-top:16px; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#ffffff;">
-          <p style="margin:0 0 4px 0; font-size:13px; color:#4b5563;">Binnen de functie:</p>
-          <p style="margin:0 0 8px 0; font-weight:600; color:#111827;">${clean(
-            track.label
-          )}</p>
+          <p style="margin:0 0 4px 0; font-size:13px; color:#4b5563;">
+            Binnen de functie:
+          </p>
+
+          <p style="margin:0 0 8px 0; font-weight:600; color:#111827;">
+            ${clean(track.label)}
+          </p>
+
           <div style="display:flex; gap:24px; flex-wrap:wrap;">
             <div style="min-width:180px;">
-              <p style="margin:0 0 4px 0; font-weight:500;">Ik beheers</p>
-              <ul style="margin:0 0 8px 20px; padding:0;">${yesHtml}</ul>
+              <p style="margin:0 0 4px 0; font-weight:500;">
+                Ik beheers
+              </p>
+
+              <ul style="margin:0 0 8px 20px; padding:0;">
+                ${yesHtml}
+              </ul>
             </div>
+
             <div style="min-width:180px;">
-              <p style="margin:0 0 4px 0; font-weight:500;">Ik wil leren</p>
-              <ul style="margin:0 0 8px 20px; padding:0;">${noHtml}</ul>
+              <p style="margin:0 0 4px 0; font-weight:500;">
+                Ik wil leren
+              </p>
+
+              <ul style="margin:0 0 8px 20px; padding:0;">
+                ${noHtml}
+              </ul>
             </div>
           </div>
         </div>`;
@@ -522,8 +574,18 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
             .join("")
         : '<p style="margin:4px 0; color:#666;">Er zijn geen functies geselecteerd in stap 1.</p>';
 
+    const phoneHtml =
+      wantsContact === true && phone.trim()
+        ? `
+        <p style="margin:4px 0;">
+          Telefoonnummer:
+          <strong>${clean(phone.trim())}</strong>
+        </p>`
+        : "";
+
     return `
       <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color:#111;">
+
         <h2 style="margin:0 0 12px 0; font-size:20px;">
           Persoonlijk Advies
         </h2>
@@ -533,18 +595,27 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
         </h3>
 
         <p style="margin:4px 0;">
-          Naam: <strong>${clean(name)}</strong>
+          Naam:
+          <strong>${clean(name)}</strong>
         </p>
 
         <p style="margin:4px 0;">
-          Datum advies: <strong>${clean(today)}</strong>
+          E-mail:
+          <strong>${clean(email)}</strong>
+        </p>
+
+        ${phoneHtml}
+
+        <p style="margin:4px 0;">
+          Datum advies:
+          <strong>${clean(today)}</strong>
         </p>
 
         ${
           background.trim()
-            ? `<p style="margin:4px 0;">Achtergrond: ${clean(
-                background
-              )}</p>`
+            ? `<p style="margin:4px 0;">
+                Achtergrond: ${clean(background)}
+              </p>`
             : ""
         }
 
@@ -593,6 +664,7 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
             www.lis.nl
           </a>
         </p>
+
       </div>`;
   }
 
@@ -606,12 +678,26 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
         ? "Nee, niet nodig"
         : "Onbekend";
 
+    const contactHtml = `
+      <div style="margin-top:20px; padding:12px; border:1px solid #e5e7eb; border-radius:12px;">
+        <p style="margin:0; font-size:14px;">
+          Persoonlijk contact gewenst:
+          <strong>${contact}</strong>
+        </p>
+        ${
+          wantsContact === true && phone.trim()
+            ? `<p style="margin:6px 0 0 0; font-size:14px;">
+                Telefoonnummer:
+                <strong>${escapeHtml(phone.trim())}</strong>
+              </p>`
+            : ""
+        }
+      </div>
+    `;
+
     return html.replace(
-      "</div>",
-      `<p style="margin-top:12px;font-size:14px;">
-        Persoonlijk contact gewenst:
-        <strong>${contact}</strong>
-      </p></div>`
+      /<\/div>\s*$/,
+      `${contactHtml}</div>`
     );
   }
 
@@ -749,7 +835,9 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
       </header>
 
       <main className="mx-auto max-w-4xl bg-white rounded-2xl shadow-lg p-8">
-        {/* Stap 1 */}
+
+        {/* STAP 1 */}
+
         {step === 1 && (
           <section>
             <h2 className="text-xl font-semibold text-black mb-2">
@@ -760,9 +848,7 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
               <div className="flex flex-col">
                 <label className="text-sm font-medium text-black">
                   Naam{" "}
-                  <span className="text-red-500">
-                    *
-                  </span>
+                  <span className="text-red-500">*</span>
                 </label>
 
                 <input
@@ -780,9 +866,7 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
               <div className="flex flex-col">
                 <label className="text-sm font-medium text-black">
                   Email{" "}
-                  <span className="text-red-500">
-                    *
-                  </span>
+                  <span className="text-red-500">*</span>
                 </label>
 
                 <input
@@ -897,7 +981,8 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
           </section>
         )}
 
-        {/* Stap 2 */}
+        {/* STAP 2 */}
+
         {step === 2 && (
           <section>
             <h2 className="text-xl font-semibold text-black mb-2">
@@ -1000,7 +1085,8 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
           </section>
         )}
 
-        {/* Stap 3 */}
+        {/* STAP 3 */}
+
         {step === 3 && (
           <section>
             <h2 className="text-xl font-semibold text-black mb-2">
@@ -1034,13 +1120,41 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
                     ? "bg-[#3489c2] border-[#3489c2] text-white hover:bg-black"
                     : "bg-white border-gray-300 hover:bg-black hover:text-white"
                 }`}
-                onClick={() =>
-                  setWantsContact(false)
-                }
+                onClick={() => {
+                  setWantsContact(false);
+                  setPhone("");
+                }}
               >
                 Nee, niet nodig
               </button>
             </div>
+
+            {wantsContact === true && (
+              <div className="mt-5 max-w-md">
+                <label className="text-sm font-medium text-black">
+                  Telefoonnummer{" "}
+                  <span className="text-red-500">*</span>
+                </label>
+
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={phone}
+                  onChange={(e) =>
+                    setPhone(e.target.value)
+                  }
+                  placeholder="Bijv. 06 12345678"
+                  className="mt-1 w-full border rounded-lg p-2"
+                  required
+                />
+
+                <p className="mt-1 text-xs text-gray-500">
+                  Vul je telefoonnummer in zodat de LiS
+                  contact met je kan opnemen.
+                </p>
+              </div>
+            )}
 
             <div className="mt-8 flex items-center gap-3">
               <button
@@ -1071,7 +1185,8 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
           </section>
         )}
 
-        {/* Stap 4 */}
+        {/* STAP 4 */}
+
         {step === 4 && (
           <section>
             <h2 className="text-xl font-semibold text-black mb-2">
@@ -1103,6 +1218,18 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
                     {today}
                   </dd>
                 </div>
+
+                {wantsContact === true && phone.trim() && (
+                  <div>
+                    <dt className="text-sm text-gray-600">
+                      Telefoonnummer
+                    </dt>
+
+                    <dd className="font-medium text-black">
+                      {phone}
+                    </dd>
+                  </div>
+                )}
 
                 {background.trim() && (
                   <div className="md:col-span-2">
@@ -1187,9 +1314,8 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
                               )
                             ) : (
                               <li className="text-gray-500">
-                                (geen ingevulde
-                                JA-antwoorden binnen deze
-                                functie)
+                                (geen ingevulde JA-antwoorden
+                                binnen deze functie)
                               </li>
                             )}
                           </ul>
@@ -1214,9 +1340,8 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
                               )
                             ) : (
                               <li className="text-gray-500">
-                                (geen ingevulde
-                                NEE-antwoorden binnen deze
-                                functie)
+                                (geen ingevulde NEE-antwoorden
+                                binnen deze functie)
                               </li>
                             )}
                           </ul>
@@ -1227,8 +1352,8 @@ ${background.trim() ? `• Achtergrond: ${background.trim()}\n` : ""}• Wat is 
                 })
               ) : (
                 <p className="text-gray-600">
-                  Er zijn geen functies geselecteerd
-                  in stap 1.
+                  Er zijn geen functies geselecteerd in
+                  stap 1.
                 </p>
               )}
             </div>
